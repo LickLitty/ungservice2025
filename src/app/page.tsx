@@ -49,9 +49,9 @@ export default function Home() {
         } else {
           setJobs(data || [])
         }
+        setLoading(false)
       } catch (error) {
         console.error('Error:', error)
-      } finally {
         setLoading(false)
       }
     }
