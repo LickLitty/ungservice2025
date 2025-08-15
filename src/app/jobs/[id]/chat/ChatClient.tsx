@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
+// Chat component - updated to fix sender issue
 export default function ChatClient({ id }: { id: string }) {
   const [msgs, setMsgs] = useState<any[]>([])
   const [text, setText] = useState('')
