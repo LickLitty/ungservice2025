@@ -1,103 +1,207 @@
 'use client'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 export default function NewJob() {
+  const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
-  const [price, setPrice] = useState<number | ''>('')
-  const [address, setAddress] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
-  const [priceType, setPriceType] = useState<'hourly'|'fixed'>('fixed')
-  const [jobType, setJobType] = useState<'one_time'|'recurring'>('one_time')
+  const [price, setPrice] = useState('')
+  const [priceType, setPriceType] = useState<'fixed' | 'hourly'>('fixed')
   const [location, setLocation] = useState('')
   const [requiresCar, setRequiresCar] = useState(false)
-  const [requiresTools, setRequiresTools] = useState<'no'|'some'|'yes'>('no')
+  const [requiresTools, setRequiresTools] = useState('no')
+  const router = useRouter()
 
-  const submit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const auth = await supabase().auth.getUser()
-    const user = auth.data.user
-    if (!user) return alert('Du må logge inn først.')
-    const prof = await supabase().from('profiles').select('full_name').eq('id', user.id).single()
+    setLoading(true)
 
-    const { error } = await supabase().from('jobs').insert({
-      owner: user.id,
-      owner_name: prof.data?.full_name || null,
-      title,
-      price_cents: price ? Number(price) * 100 : null,
-      address,
-      description,
-      category: category || null,
-      price_type: priceType,
-      job_type: jobType,
-      location: location || null,
-      requires_car: requiresCar,
-      requires_tools: requiresTools
-    })
-    if (error) alert(error.message)
-    else window.location.href = '/'
+    try {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) {
+        alert('Du må være logget inn for å legge ut oppdrag')
+        return
+      }
+
+      const { error } = await supabase().from('jobs').insert({
+        title: title.trim(),
+        description: description.trim(),
+        category: category || 'Annet',
+        price_cents: price ? Math.round(parseFloat(price) * 100) : null,
+        price_type: priceType,
+        location: location.trim() || null,
+        requires_car: requiresCar,
+        requires_tools: requiresTools,
+        owner: user.id,
+        status: 'open'
+      })
+
+      if (error) {
+        alert('Feil ved oppretting av oppdrag: ' + error.message)
+      } else {
+        alert('Oppdrag opprettet!')
+        router.push('/')
+      }
+    } catch (error) {
+      alert('En feil oppstod')
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <h1 className="text-3xl font-bold">Nytt oppdrag</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm mb-1">Kategori</label>
-          <select className="w-full border rounded p-3" value={category} onChange={e=>setCategory(e.target.value)}>
-            <option value="">Velg kategori</option>
-            <option>Gressklipp</option>
-            <option>Snekring</option>
-            <option>Flyttehjelp</option>
-            <option>Snømåking</option>
-            <option>Vask</option>
-            <option>Annet</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Type jobb</label>
-          <select className="w-full border rounded p-3" value={jobType} onChange={e=>setJobType(e.target.value as any)}>
-            <option value="one_time">Engangsjobb</option>
-            <option value="recurring">Gjentakende jobb</option>
-          </select>
-        </div>
-      </div>
-      <input className="w-full border rounded p-3 text-base" placeholder="Tittel" value={title} onChange={e=>setTitle(e.target.value)} required />
-      <textarea className="w-full border rounded p-3 text-base" placeholder="Beskrivelse (valgfritt)" value={description} onChange={e=>setDescription(e.target.value)} />
-      <input className="w-full border rounded p-3 text-base" placeholder="Adresse (valgfritt)" value={address} onChange={e=>setAddress(e.target.value)} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm mb-1">Pris</label>
-          <input className="w-full border rounded p-3 text-base" placeholder="Beløp i kr" type="number" value={price} onChange={e=>setPrice(e.target.value ? Number(e.target.value) : '')} />
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Pristype</label>
-          <select className="w-full border rounded p-3" value={priceType} onChange={e=>setPriceType(e.target.value as any)}>
-            <option value="fixed">Fastpris</option>
-            <option value="hourly">Timebetalt</option>
-          </select>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm mb-1">Sted</label>
-          <input className="w-full border rounded p-3 text-base" placeholder="By/område" value={location} onChange={e=>setLocation(e.target.value)} />
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Krav</label>
-          <div className="flex gap-3">
-            <label className="inline-flex items-center gap-2"><input type="checkbox" checked={requiresCar} onChange={e=>setRequiresCar(e.target.checked)} /> Bil kreves</label>
-            <select className="border rounded p-2" value={requiresTools} onChange={e=>setRequiresTools(e.target.value as any)}>
-              <option value="no">Utstyr: Nei</option>
-              <option value="some">Utstyr: Noe</option>
-              <option value="yes">Utstyr: Ja</option>
-            </select>
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-lg border p-8">
+        <h1 className="text-3xl font-bold mb-6">Legg ut nytt oppdrag</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tittel på oppdraget *
+            </label>
+            <input
+              type="text"
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="F.eks. Hjelp til gressklipp"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
-        </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Beskrivelse *
+            </label>
+            <textarea
+              required
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Beskriv oppdraget i detalj..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Category and Location */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kategori
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Velg kategori</option>
+                <option value="Gressklipp">Gressklipp</option>
+                <option value="Snekring">Snekring</option>
+                <option value="Flyttehjelp">Flyttehjelp</option>
+                <option value="Snømåking">Snømåking</option>
+                <option value="Vask">Vask</option>
+                <option value="Annet">Annet</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sted
+              </label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="F.eks. Oslo, Bergen..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Price */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pris (valgfritt)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="F.eks. 500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pristype
+              </label>
+              <select
+                value={priceType}
+                onChange={(e) => setPriceType(e.target.value as 'fixed' | 'hourly')}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="fixed">Fastpris</option>
+                <option value="hourly">Timebetalt</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Requirements */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Krav</h3>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="requiresCar"
+                checked={requiresCar}
+                onChange={(e) => setRequiresCar(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="requiresCar" className="ml-2 text-sm text-gray-700">
+                Bil påkrevd
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Utstyr påkrevd
+              </label>
+              <select
+                value={requiresTools}
+                onChange={(e) => setRequiresTools(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="no">Ingen spesielt utstyr</option>
+                <option value="basic">Grunnleggende verktøy</option>
+                <option value="specialized">Spesialutstyr</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+            >
+              {loading ? 'Oppretter oppdrag...' : 'Legg ut oppdrag'}
+            </button>
+          </div>
+        </form>
       </div>
-      <button className="bg-black text-white rounded px-4 py-2 text-base">Publiser</button>
-    </form>
+    </div>
   )
 }
 
