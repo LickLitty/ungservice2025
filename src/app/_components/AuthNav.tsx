@@ -9,13 +9,13 @@ export default function AuthNav() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase().auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
       setLoading(false)
     }
     getUser()
 
-    const { data: { subscription } } = supabase().auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
 
@@ -23,7 +23,7 @@ export default function AuthNav() {
   }, [])
 
   const signOut = async () => {
-    await supabase().auth.signOut()
+    await supabase.auth.signOut()
   }
 
   if (loading) {

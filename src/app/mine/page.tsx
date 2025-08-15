@@ -9,9 +9,9 @@ export default function MyJobsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase().auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase().from('jobs').select('*').eq('owner', user.id).order('created_at', { ascending: false })
+      const { data } = await supabase.from('jobs').select('*').eq('owner', user.id).order('created_at', { ascending: false })
       setJobs(data || [])
     }
     load()
@@ -19,22 +19,22 @@ export default function MyJobsPage() {
 
   const openJob = async (job: any) => {
     setSelectedJob(job)
-    const { data } = await supabase().from('applications').select('id, applicant, message, price_cents, created_at').eq('job_id', job.id)
+    const { data } = await supabase.from('applications').select('id, applicant, message, price_cents, created_at').eq('job_id', job.id)
     // Map applicants to profiles
     const mapped = await Promise.all((data || []).map(async (a) => {
-      const p = await supabase().from('profiles').select('id, full_name, phone').eq('id', a.applicant).single()
+      const p = await supabase.from('profiles').select('id, full_name, phone').eq('id', a.applicant).single()
       return { ...a, profile: p.data }
     }))
     setApplicants(mapped)
   }
 
   const accept = async (appId: string) => {
-    await supabase().from('applications').update({ status: 'accepted' }).eq('id', appId)
+    await supabase.from('applications').update({ status: 'accepted' }).eq('id', appId)
     setApplicants(prev => prev.map(a => a.id === appId ? { ...a, status: 'accepted' } : a))
   }
 
   const reject = async (appId: string) => {
-    await supabase().from('applications').update({ status: 'rejected' }).eq('id', appId)
+    await supabase.from('applications').update({ status: 'rejected' }).eq('id', appId)
     setApplicants(prev => prev.map(a => a.id === appId ? { ...a, status: 'rejected' } : a))
   }
 

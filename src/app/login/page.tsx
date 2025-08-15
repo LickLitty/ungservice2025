@@ -11,7 +11,7 @@ export default function LoginPage() {
 
   // Auto-redirect hvis allerede innlogget
   useEffect(() => {
-    supabase().auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/')
     })
   }, [router])
@@ -19,7 +19,7 @@ export default function LoginPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { data, error } = await supabase().auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (error) {
       alert(error.message)

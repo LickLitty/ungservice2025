@@ -19,9 +19,9 @@ export default function NotificationsPage() {
   useEffect(() => {
     let channel: ReturnType<ReturnType<typeof supabase>['channel']> | null = null
     const load = async () => {
-      const { data: { user } } = await supabase().auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase()
+      const { data } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
@@ -29,7 +29,7 @@ export default function NotificationsPage() {
       setItems((data || []) as Notification[])
       setLoading(false)
 
-      channel = supabase()
+      channel = supabase
         .channel(`notifications-${user.id}`)
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
@@ -38,12 +38,12 @@ export default function NotificationsPage() {
         .subscribe()
     }
     load()
-    return () => { if (channel) supabase().removeChannel(channel) }
+    return () => { if (channel) supabase.removeChannel(channel) }
   }, [])
 
   const markRead = async (id: string) => {
     setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-    await supabase().from('notifications').update({ read: true }).eq('id', id)
+    await supabase.from('notifications').update({ read: true }).eq('id', id)
   }
 
   if (loading) return <div>Laster…</div>

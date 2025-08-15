@@ -15,7 +15,7 @@ export default function ChatClient({ id }: { id: string }) {
   // Load messages
   useEffect(() => {
     const loadMessages = async () => {
-      const { data, error } = await supabase()
+      const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('job_id', id)
@@ -31,12 +31,10 @@ export default function ChatClient({ id }: { id: string }) {
 
   // Setup real-time subscription
   useEffect(() => {
-    const sb = supabase()
-    
     // Create unique channel name
     const channelName = `messages-${id}-${Date.now()}`
     
-    const channel = sb.channel(channelName)
+    const channel = supabase.channel(channelName)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
@@ -62,7 +60,7 @@ export default function ChatClient({ id }: { id: string }) {
 
     return () => {
       if (channelRef.current) {
-        sb.removeChannel(channelRef.current)
+        supabase.removeChannel(channelRef.current)
       }
     }
   }, [id])
@@ -70,25 +68,25 @@ export default function ChatClient({ id }: { id: string }) {
   // Load user data
   useEffect(() => {
     const loadUsers = async () => {
-      const { data: { user } } = await supabase().auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       
-      const jobRes = await supabase().from('jobs').select('owner').eq('id', id).single()
+      const jobRes = await supabase.from('jobs').select('owner').eq('id', id).single()
       const ownerId = jobRes.data?.owner
       if (!ownerId) return
       
-      const ownerRes = await supabase().from('profiles').select('full_name').eq('id', ownerId).single()
+      const ownerRes = await supabase.from('profiles').select('full_name').eq('id', ownerId).single()
       if (!ownerRes.error) setOwnerName(ownerRes.data?.full_name || '')
 
-      const meRes = await supabase().from('profiles').select('id,full_name,phone,about').eq('id', user.id).single()
+      const meRes = await supabase.from('profiles').select('id,full_name,phone,about').eq('id', user.id).single()
       setMe(meRes.data)
       
       const otherId = user.id === ownerId
-        ? (await supabase().from('applications').select('applicant').eq('job_id', id).limit(1).maybeSingle()).data?.applicant
+        ? (await supabase.from('applications').select('applicant').eq('job_id', id).limit(1).maybeSingle()).data?.applicant
         : ownerId
       
       if (otherId) {
-        const otherRes = await supabase().from('profiles').select('id,full_name,phone,about').eq('id', otherId).maybeSingle()
+        const otherRes = await supabase.from('profiles').select('id,full_name,phone,about').eq('id', otherId).maybeSingle()
         setOther(otherRes.data)
       }
     }
@@ -103,7 +101,7 @@ export default function ChatClient({ id }: { id: string }) {
   const send = async () => {
     if (!text.trim() || loading) return
     
-    const { data: { user } } = await supabase().auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       alert('Logg inn.')
       return
@@ -127,7 +125,7 @@ export default function ChatClient({ id }: { id: string }) {
       setText('')
 
       // Send to database
-      const { error } = await supabase().from('messages').insert({
+      const { error } = await supabase.from('messages').insert({
         job_id: id,
         sender: user.id,
         body: text.trim()

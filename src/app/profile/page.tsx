@@ -27,46 +27,39 @@ function ProfileContent() {
   const router = useRouter()
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase().auth.getUser()
-      if (!user) {
-        router.replace('/login')
-        return
-      }
-      const { data } = await supabase()
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .maybeSingle()
-      const p = (data || null) as Profile | null
-      setProfile(p)
-      setFullName(p?.full_name || '')
-      if (p?.phone) {
-        const m = p.phone.match(/^(\+\d{1,3})(.*)$/)
-        if (m) { setPhoneCountry(m[1]); setPhone(m[2]) } else { setPhone(p.phone) }
-      } else {
-        setPhone('')
+        .single()
+      
+      if (data) {
+        setFullName(data.full_name || '')
+        setPhone(data.phone || '')
+        setAbout(data.about || '')
       }
-      setAbout(p?.about || '')
-      setLoading(false)
     }
-    load()
-  }, [router])
+    loadProfile()
+  }, [])
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const { data: { user } } = await supabase().auth.getUser()
-    if (!user) return alert('Logg inn først')
-    const updates: Record<string, any> = {
+  const save = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    
+    const updates = {
       id: user.id,
-      full_name: fullName || null,
-      phone: phone ? `${phoneCountry}${phone.replace(/\s+/g, '')}` : null,
-      about: about || null,
+      full_name: fullName,
+      phone: phone,
+      about: about,
+      updated_at: new Date().toISOString()
     }
-    const { error } = await supabase().from('profiles').upsert(updates, { onConflict: 'id' })
-    if (error) return alert(error.message)
-    if (onboarding) router.replace('/')
-    else alert('Lagret!')
+    
+    const { error } = await supabase.from('profiles').upsert(updates, { onConflict: 'id' })
+    if (!error) alert('Profil oppdatert!')
   }
 
   if (loading) return <div>Laster…</div>

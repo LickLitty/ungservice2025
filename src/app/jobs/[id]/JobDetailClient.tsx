@@ -10,29 +10,29 @@ export default function JobDetailClient({ id }: { id: string }) {
   const [ownerName, setOwnerName] = useState<string>('')
 
   useEffect(() => {
-    supabase().from('jobs').select('*').eq('id', id).single()
-      .then(async ({ data, error }) => {
-        if (!error && data) {
-          setJob(data)
-          if (data.owner) {
-            const prof = await supabase().from('profiles').select('full_name').eq('id', data.owner).single()
-            if (!prof.error) setOwnerName(prof.data?.full_name || '')
-          }
-        }
-      })
+    const loadJob = async () => {
+      const { data, error } = await supabase.from('jobs').select('*').eq('id', id).single()
+      if (!error && data) {
+        setJob(data)
+        const prof = await supabase.from('profiles').select('full_name').eq('id', data.owner).single()
+        if (!prof.error) setOwnerName(prof.data?.full_name || '')
+      }
+    }
+    loadJob()
   }, [id])
 
   const apply = async () => {
-    const { data: { user } } = await supabase().auth.getUser()
-    if (!user) return alert('Logg inn for å søke.')
-    const { error } = await supabase().from('applications').insert({
-      job_id: id,
-      applicant: user.id,
-      message,
-      price_cents: price ? Number(price) * 100 : null
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return alert('Logg inn.')
+    if (!price || !message) return alert('Fyll ut alle feltene.')
+    const { error } = await supabase.from('applications').insert({
+      job_id: id, applicant: user.id, price_cents: price * 100, message
     })
-    if (error) alert(error.message)
-    else alert('Søknad sendt!')
+    if (!error) {
+      setPrice('')
+      setMessage('')
+      alert('Søknad sendt!')
+    }
   }
 
   const markInterested = async () => {

@@ -21,7 +21,7 @@ export default function ResetPasswordPage() {
       window.addEventListener('hashchange', onHash)
       return () => window.removeEventListener('hashchange', onHash)
     }
-    const { data: sub } = supabase().auth.onAuthStateChange((event) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setIsRecovery(true)
     })
     return () => { sub.subscription.unsubscribe() }
@@ -30,7 +30,7 @@ export default function ResetPasswordPage() {
   const requestReset = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase().auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset#type=recovery`
     })
     setLoading(false)
@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
   const updatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase().auth.updateUser({ password: newPassword })
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
     setLoading(false)
     if (error) return alert(error.message)
     alert('Passord oppdatert. Logg inn på nytt.')

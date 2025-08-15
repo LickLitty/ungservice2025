@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const router = useRouter()
 
   useEffect(() => {
-    supabase().auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/')
     })
   }, [router])
@@ -25,11 +25,11 @@ export default function RegisterPage() {
     e.preventDefault()
     const fullPhone = phone ? `${phoneCountry}${phone.replace(/\s+/g, '')}` : null
     // Opprett konto med e-post + passord
-    const { data, error } = await supabase().auth.signUp({ email, password, options: { data: { full_name: fullName } } })
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } })
     if (error) return alert(error.message)
     // Oppdater profilfelter (kan kreve at user er bekreftet; Supabase tillater upsert med auth uid)
     if (data.user) {
-      await supabase().from('profiles').upsert({ id: data.user.id, full_name: fullName || null, phone: fullPhone, about: about || null })
+      await supabase.from('profiles').upsert({ id: data.user.id, full_name: fullName || null, phone: fullPhone, about: about || null })
     }
     // Hvis e-postbekreftelse er av, har vi session og sender til profil. Hvis på, sender vi til login.
     if (data.session) router.replace('/profile?onboarding=1')

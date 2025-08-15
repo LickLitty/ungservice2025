@@ -20,14 +20,14 @@ export default function NewJob() {
     setLoading(true)
 
     try {
-      const { data: { user } } = await supabase().auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         alert('Du må være logget inn for å legge ut oppdrag')
         return
       }
 
       // Sjekk om bruker har profil, opprett hvis ikke
-      const { data: profile } = await supabase()
+      const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('id', user.id)
@@ -35,7 +35,7 @@ export default function NewJob() {
 
       if (!profile) {
         // Opprett profil hvis den ikke eksisterer
-        const { error: profileError } = await supabase()
+        const { error: profileError } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
@@ -50,7 +50,7 @@ export default function NewJob() {
         }
       }
 
-      const { error } = await supabase().from('jobs').insert({
+      const { error } = await supabase.from('jobs').insert({
         title: title.trim(),
         description: description.trim(),
         category: category || 'Annet',

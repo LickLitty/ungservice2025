@@ -30,13 +30,12 @@ export default function Home() {
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    const fetchJobs = async () => {
+    const loadJobs = async () => {
       setLoading(true)
-      try {
-        let query = supabase()
-          .from('jobs')
-          .select('id,title,price_cents,address,status,category,price_type,owner_name,description,location,requires_car,requires_tools,created_at')
-          .eq('status', 'open')
+      let query = supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false })
         
         if (category) query = query.eq('category', category)
         if (priceType) query = query.eq('price_type', priceType as any)
@@ -57,7 +56,7 @@ export default function Home() {
       }
     }
     
-    fetchJobs()
+    loadJobs()
   }, [category, priceType, location, q])
 
   return (
