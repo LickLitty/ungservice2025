@@ -67,7 +67,7 @@ export default function JobCard({ job }: Props) {
             )}
             {job.requires_tools && job.requires_tools !== 'no' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
-                🧰 Utstyr påkrevd
+                🧰 {job.requires_tools === 'some' ? 'Grunnleggende utstyr' : 'Spesialutstyr'}
               </span>
             )}
           </div>

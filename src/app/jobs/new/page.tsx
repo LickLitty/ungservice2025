@@ -183,8 +183,8 @@ export default function NewJob() {
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="no">Ingen spesielt utstyr</option>
-                <option value="basic">Grunnleggende verktøy</option>
-                <option value="specialized">Spesialutstyr</option>
+                <option value="some">Grunnleggende verktøy</option>
+                <option value="yes">Spesialutstyr</option>
               </select>
             </div>
           </div>
