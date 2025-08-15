@@ -11,7 +11,7 @@ export default function ChatClient({ id }: { id: string }) {
   const [other, setOther] = useState<any>(null)
   const [ownerName, setOwnerName] = useState<string>('')
   const channelRef = useRef<any>(null)
-  const optimisticMessagesRef = useRef<Set<string>>(new Set())
+  const optimisticMessagesRef = useRef<Map<string, string>>(new Map()) // optimisticId -> messageBody
   const lastMessageTimeRef = useRef<string>('')
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -53,7 +53,23 @@ export default function ChatClient({ id }: { id: string }) {
             )
             if (newMessages.length > 0) {
               lastMessageTimeRef.current = data[data.length - 1].created_at
-              return [...prev, ...newMessages]
+              
+              // Remove optimistic messages that match
+              const updated = prev.filter(msg => {
+                if (msg.id.startsWith('temp-')) {
+                  const optimisticBody = optimisticMessagesRef.current.get(msg.id)
+                  const hasMatchingRealMessage = newMessages.some(realMsg => 
+                    realMsg.body === optimisticBody && realMsg.sender === me?.id
+                  )
+                  if (hasMatchingRealMessage) {
+                    optimisticMessagesRef.current.delete(msg.id)
+                    return false // Remove optimistic message
+                  }
+                }
+                return true
+              })
+              
+              return [...updated, ...newMessages]
             }
             return prev
           })
@@ -68,7 +84,7 @@ export default function ChatClient({ id }: { id: string }) {
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [id])
+  }, [id, me?.id])
 
   // Setup real-time subscription
   useEffect(() => {
@@ -87,29 +103,29 @@ export default function ChatClient({ id }: { id: string }) {
           (payload) => {
             console.log('New message received:', payload)
             
-            // Remove optimistic message if this is the real one
-            const optimisticId = Array.from(optimisticMessagesRef.current).find(optId => 
-              payload.new.body === text || payload.new.sender === me?.id
-            )
-            if (optimisticId) {
-              optimisticMessagesRef.current.delete(optimisticId)
-            }
-            
             setMsgs(prev => {
               // Check if message already exists to avoid duplicates
               const exists = prev.some(msg => msg.id === payload.new.id)
               if (exists) return prev
               
-              // Replace optimistic message with real one
-              const withoutOptimistic = prev.filter(msg => !msg.id.startsWith('temp-'))
-              const updated = [...withoutOptimistic, payload.new]
+              // Remove optimistic message if this matches
+              const updated = prev.filter(msg => {
+                if (msg.id.startsWith('temp-')) {
+                  const optimisticBody = optimisticMessagesRef.current.get(msg.id)
+                  if (payload.new.body === optimisticBody && payload.new.sender === me?.id) {
+                    optimisticMessagesRef.current.delete(msg.id)
+                    return false // Remove optimistic message
+                  }
+                }
+                return true
+              })
               
               // Update last message time
               if (payload.new.created_at > lastMessageTimeRef.current) {
                 lastMessageTimeRef.current = payload.new.created_at
               }
               
-              return updated
+              return [...updated, payload.new]
             })
           }
         )
@@ -127,7 +143,7 @@ export default function ChatClient({ id }: { id: string }) {
         supabase.removeChannel(channelRef.current)
       }
     }
-  }, [id, me?.id, text])
+  }, [id, me?.id])
 
   // Load user data
   useEffect(() => {
@@ -190,7 +206,7 @@ export default function ChatClient({ id }: { id: string }) {
 
       // Add optimistic message immediately
       setMsgs(prev => [...prev, optimisticMessage])
-      optimisticMessagesRef.current.add(optimisticId)
+      optimisticMessagesRef.current.set(optimisticId, messageText)
 
       // Send to database
       const { error } = await supabase.from('messages').insert({
