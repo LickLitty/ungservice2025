@@ -26,6 +26,30 @@ export default function NewJob() {
         return
       }
 
+      // Sjekk om bruker har profil, opprett hvis ikke
+      const { data: profile } = await supabase()
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile) {
+        // Opprett profil hvis den ikke eksisterer
+        const { error: profileError } = await supabase()
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || null,
+            avatar_url: user.user_metadata?.avatar_url || null
+          })
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError)
+          alert('Feil ved oppretting av profil. Prøv å logge ut og inn igjen.')
+          return
+        }
+      }
+
       const { error } = await supabase().from('jobs').insert({
         title: title.trim(),
         description: description.trim(),
