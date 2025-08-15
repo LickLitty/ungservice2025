@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import type { Session } from '@supabase/supabase-js'
 
 export default function AuthNav() {
   const [user, setUser] = useState<any>(null)
@@ -15,7 +16,7 @@ export default function AuthNav() {
     }
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
       setUser(session?.user ?? null)
     })
 

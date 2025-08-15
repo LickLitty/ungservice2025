@@ -21,7 +21,7 @@ export default function ResetPasswordPage() {
       window.addEventListener('hashchange', onHash)
       return () => window.removeEventListener('hashchange', onHash)
     }
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'PASSWORD_RECOVERY') setIsRecovery(true)
     })
     return () => { sub.subscription.unsubscribe() }

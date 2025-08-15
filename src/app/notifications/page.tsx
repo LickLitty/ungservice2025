@@ -17,7 +17,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let channel: ReturnType<ReturnType<typeof supabase>['channel']> | null = null
+    let channel: any | null = null
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -33,7 +33,7 @@ export default function NotificationsPage() {
         .channel(`notifications-${user.id}`)
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-          (payload) => setItems(prev => [payload.new as Notification, ...prev])
+          (payload: { new: Notification }) => setItems(prev => [payload.new as Notification, ...prev])
         )
         .subscribe()
     }

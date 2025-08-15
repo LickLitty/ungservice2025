@@ -21,21 +21,21 @@ export default function MyJobsPage() {
     setSelectedJob(job)
     const { data } = await supabase.from('applications').select('id, applicant, message, price_cents, created_at').eq('job_id', job.id)
     // Map applicants to profiles
-    const mapped = await Promise.all((data || []).map(async (a) => {
+    const mapped = await Promise.all((data || []).map(async (a: any) => {
       const p = await supabase.from('profiles').select('id, full_name, phone').eq('id', a.applicant).single()
       return { ...a, profile: p.data }
     }))
-    setApplicants(mapped)
+    setApplicants(mapped as any[])
   }
 
   const accept = async (appId: string) => {
     await supabase.from('applications').update({ status: 'accepted' }).eq('id', appId)
-    setApplicants(prev => prev.map(a => a.id === appId ? { ...a, status: 'accepted' } : a))
+    setApplicants(prev => prev.map((a: any) => a.id === appId ? { ...a, status: 'accepted' } : a))
   }
 
   const reject = async (appId: string) => {
     await supabase.from('applications').update({ status: 'rejected' }).eq('id', appId)
-    setApplicants(prev => prev.map(a => a.id === appId ? { ...a, status: 'rejected' } : a))
+    setApplicants(prev => prev.map((a: any) => a.id === appId ? { ...a, status: 'rejected' } : a))
   }
 
   return (
@@ -57,7 +57,7 @@ export default function MyJobsPage() {
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">Søkere / interesserte</h2>
             {applicants.length===0 && <div>Ingen enda.</div>}
-            {applicants.map(a => (
+            {applicants.map((a: any) => (
               <div key={a.id} className="border rounded p-3 bg-white">
                 <div className="font-medium">{a.profile?.full_name || 'Uten navn'}{a.profile?.phone ? ` · ${a.profile.phone}` : ''}</div>
                 {a.price_cents ? <div className="text-sm">Prisforslag: {(a.price_cents/100).toFixed(0)} kr</div> : null}

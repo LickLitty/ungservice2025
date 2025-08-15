@@ -30,34 +30,39 @@ export default function Home() {
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    const loadJobs = async () => {
+    let cancelled = false
+
+    async function loadJobs() {
+      if (cancelled) return
       setLoading(true)
       try {
         let query = supabase
           .from('jobs')
           .select('*')
           .order('created_at', { ascending: false })
-          
+
         if (category) query = query.eq('category', category)
         if (priceType) query = query.eq('price_type', priceType as any)
         if (location) query = query.ilike('location', `%${location}%`)
         if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`)
-        
+
         const { data, error } = await query.order('created_at', { ascending: false })
-        
         if (error) {
           console.error('Error fetching jobs:', error)
-        } else {
-          setJobs(data || [])
+          if (!cancelled) setJobs([])
+        } else if (!cancelled) {
+          setJobs((data as Job[]) || [])
         }
-        setLoading(false)
       } catch (error) {
         console.error('Error:', error)
-        setLoading(false)
+        if (!cancelled) setJobs([])
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
-    
+
     loadJobs()
+    return () => { cancelled = true }
   }, [category, priceType, location, q])
 
   return (

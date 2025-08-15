@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import type { Session } from '@supabase/supabase-js'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,8 +12,8 @@ export default function LoginPage() {
 
   // Auto-redirect hvis allerede innlogget
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace('/')
+    supabase.auth.getSession().then((res: { data: { session: Session | null } }) => {
+      if (res.data.session) router.replace('/')
     })
   }, [router])
 

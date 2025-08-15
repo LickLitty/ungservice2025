@@ -36,9 +36,9 @@ export default function JobDetailClient({ id }: { id: string }) {
   }
 
   const markInterested = async () => {
-    const { data: { user } } = await supabase().auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return alert('Logg inn for å vise interesse.')
-    const { error } = await supabase().from('applications').upsert({
+    const { error } = await supabase.from('applications').upsert({
       job_id: id,
       applicant: user.id,
       message: message || 'Viser interesse',
@@ -48,17 +48,17 @@ export default function JobDetailClient({ id }: { id: string }) {
     if (error) alert(error.message)
     else {
       // Send automatisk systemmelding som varsling i chatten
-      const prof = await supabase().from('profiles').select('full_name').eq('id', user.id).single()
+      const prof = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
       const displayName = prof.data?.full_name || 'En bruker'
-      await supabase().from('messages').insert({
+      await supabase.from('messages').insert({
         job_id: id,
         sender: user.id,
         body: `${displayName} viste interesse for oppdraget.`
       })
       // Notification til eier
-      const job = await supabase().from('jobs').select('owner').eq('id', id).single()
+      const job = await supabase.from('jobs').select('owner').eq('id', id).single()
       if (job.data?.owner) {
-        await supabase().from('notifications').insert({
+        await supabase.from('notifications').insert({
           user_id: job.data.owner,
           job_id: id,
           from_user: user.id,
