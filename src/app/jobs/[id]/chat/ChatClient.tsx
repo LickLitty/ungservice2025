@@ -11,6 +11,8 @@ export default function ChatClient({ id }: { id: string }) {
   const [me, setMe] = useState<any>(null)
   const [other, setOther] = useState<any>(null)
   const [ownerName, setOwnerName] = useState<string>('')
+  const lastMessageTimeRef = useRef<string>('')
+  const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load messages
   useEffect(() => {
@@ -23,10 +25,32 @@ export default function ChatClient({ id }: { id: string }) {
       
       if (!error && data) {
         setMsgs(data)
+        if (data.length > 0) {
+          lastMessageTimeRef.current = data[data.length - 1].created_at
+        }
       }
     }
     
     loadMessages()
+  }, [id])
+
+  // Poll for new messages every 2s
+  useEffect(() => {
+    if (pollRef.current) clearInterval(pollRef.current)
+    pollRef.current = setInterval(async () => {
+      const since = lastMessageTimeRef.current
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('job_id', id)
+        .gt('created_at', since || '1970-01-01')
+        .order('created_at', { ascending: true })
+      if (!error && data && data.length > 0) {
+        setMsgs(prev => [...prev, ...data])
+        lastMessageTimeRef.current = data[data.length - 1].created_at
+      }
+    }, 2000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [id])
 
   // Load user data
@@ -89,6 +113,7 @@ export default function ChatClient({ id }: { id: string }) {
       } else if (data) {
         // Add the real message immediately
         setMsgs(prev => [...prev, data])
+        lastMessageTimeRef.current = data.created_at
       }
     } catch (error) {
       console.error('Error sending message:', error)
