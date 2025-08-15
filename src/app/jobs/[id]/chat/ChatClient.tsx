@@ -10,9 +10,6 @@ export default function ChatClient({ id }: { id: string }) {
   const [me, setMe] = useState<any>(null)
   const [other, setOther] = useState<any>(null)
   const [ownerName, setOwnerName] = useState<string>('')
-  const lastMessageTimeRef = useRef<string>('')
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const pendingMessagesRef = useRef<Set<string>>(new Set())
 
   // Load messages
   useEffect(() => {
@@ -25,64 +22,11 @@ export default function ChatClient({ id }: { id: string }) {
       
       if (!error && data) {
         setMsgs(data)
-        if (data.length > 0) {
-          lastMessageTimeRef.current = data[data.length - 1].created_at
-        }
       }
     }
     
     loadMessages()
   }, [id])
-
-  // Setup polling for new messages
-  useEffect(() => {
-    const startPolling = () => {
-      pollingIntervalRef.current = setInterval(async () => {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('job_id', id)
-          .gt('created_at', lastMessageTimeRef.current)
-          .order('created_at', { ascending: true })
-        
-        if (!error && data && data.length > 0) {
-          setMsgs(prev => {
-            const newMessages = data.filter(newMsg => 
-              !prev.some(existingMsg => existingMsg.id === newMsg.id)
-            )
-            if (newMessages.length > 0) {
-              lastMessageTimeRef.current = data[data.length - 1].created_at
-              
-              // Remove optimistic messages that are now confirmed
-              const updated = prev.filter(msg => {
-                if (msg.id.startsWith('temp-')) {
-                  const hasMatchingRealMessage = newMessages.some(realMsg => 
-                    realMsg.body === msg.body && realMsg.sender === me?.id
-                  )
-                  if (hasMatchingRealMessage) {
-                    pendingMessagesRef.current.delete(msg.id)
-                    return false // Remove optimistic message
-                  }
-                }
-                return true
-              })
-              
-              return [...updated, ...newMessages]
-            }
-            return prev
-          })
-        }
-      }, 2000) // Poll every 2 seconds
-    }
-
-    startPolling()
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-      }
-    }
-  }, [id, me?.id])
 
   // Load user data
   useEffect(() => {
@@ -132,33 +76,18 @@ export default function ChatClient({ id }: { id: string }) {
       const messageText = text.trim()
       setText('')
 
-      // Create optimistic message
-      const optimisticId = `temp-${Date.now()}`
-      const optimisticMessage = {
-        id: optimisticId,
-        job_id: id,
-        sender: user.id,
-        body: messageText,
-        created_at: new Date().toISOString(),
-        sender_name: me?.full_name || 'Deg'
-      }
-
-      // Add optimistic message immediately
-      setMsgs(prev => [...prev, optimisticMessage])
-      pendingMessagesRef.current.add(optimisticId)
-
-      // Send to database
-      const { error } = await supabase.from('messages').insert({
+      // Send to database first
+      const { data, error } = await supabase.from('messages').insert({
         job_id: id,
         sender: user.id,
         body: messageText
-      })
+      }).select().single()
 
       if (error) {
-        // Remove optimistic message if failed
-        setMsgs(prev => prev.filter(msg => msg.id !== optimisticId))
-        pendingMessagesRef.current.delete(optimisticId)
         alert('Feil ved sending av melding: ' + error.message)
+      } else if (data) {
+        // Add the real message immediately
+        setMsgs(prev => [...prev, data])
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -190,10 +119,9 @@ export default function ChatClient({ id }: { id: string }) {
           </div>
         )}
         {msgs.map(m => (
-          <div key={m.id} className={`border rounded p-3 ${m.id.startsWith('temp-') ? 'opacity-70' : ''}`}>
+          <div key={m.id} className="border rounded p-3">
             <div className="text-sm text-gray-500">
               {new Date(m.created_at).toLocaleString('no-NO')}
-              {m.id.startsWith('temp-') && <span className="ml-2 text-blue-500">(sender...)</span>}
             </div>
             <div className="text-base leading-7">
               <span className="font-semibold">
