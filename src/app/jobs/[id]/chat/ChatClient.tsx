@@ -10,10 +10,9 @@ export default function ChatClient({ id }: { id: string }) {
   const [me, setMe] = useState<any>(null)
   const [other, setOther] = useState<any>(null)
   const [ownerName, setOwnerName] = useState<string>('')
-  const channelRef = useRef<any>(null)
-  const optimisticMessagesRef = useRef<Map<string, string>>(new Map()) // optimisticId -> messageBody
   const lastMessageTimeRef = useRef<string>('')
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingMessagesRef = useRef<Set<string>>(new Set())
 
   // Load messages
   useEffect(() => {
@@ -35,7 +34,7 @@ export default function ChatClient({ id }: { id: string }) {
     loadMessages()
   }, [id])
 
-  // Setup polling fallback
+  // Setup polling for new messages
   useEffect(() => {
     const startPolling = () => {
       pollingIntervalRef.current = setInterval(async () => {
@@ -54,15 +53,14 @@ export default function ChatClient({ id }: { id: string }) {
             if (newMessages.length > 0) {
               lastMessageTimeRef.current = data[data.length - 1].created_at
               
-              // Remove optimistic messages that match
+              // Remove optimistic messages that are now confirmed
               const updated = prev.filter(msg => {
                 if (msg.id.startsWith('temp-')) {
-                  const optimisticBody = optimisticMessagesRef.current.get(msg.id)
                   const hasMatchingRealMessage = newMessages.some(realMsg => 
-                    realMsg.body === optimisticBody && realMsg.sender === me?.id
+                    realMsg.body === msg.body && realMsg.sender === me?.id
                   )
                   if (hasMatchingRealMessage) {
-                    optimisticMessagesRef.current.delete(msg.id)
+                    pendingMessagesRef.current.delete(msg.id)
                     return false // Remove optimistic message
                   }
                 }
@@ -74,7 +72,7 @@ export default function ChatClient({ id }: { id: string }) {
             return prev
           })
         }
-      }, 3000) // Poll every 3 seconds
+      }, 2000) // Poll every 2 seconds
     }
 
     startPolling()
@@ -82,65 +80,6 @@ export default function ChatClient({ id }: { id: string }) {
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
-      }
-    }
-  }, [id, me?.id])
-
-  // Setup real-time subscription
-  useEffect(() => {
-    const setupSubscription = async () => {
-      // Create unique channel name
-      const channelName = `messages-${id}-${Date.now()}`
-      
-      const channel = supabase.channel(channelName)
-        .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'messages', 
-            filter: `job_id=eq.${id}` 
-          },
-          (payload) => {
-            console.log('New message received:', payload)
-            
-            setMsgs(prev => {
-              // Check if message already exists to avoid duplicates
-              const exists = prev.some(msg => msg.id === payload.new.id)
-              if (exists) return prev
-              
-              // Remove optimistic message if this matches
-              const updated = prev.filter(msg => {
-                if (msg.id.startsWith('temp-')) {
-                  const optimisticBody = optimisticMessagesRef.current.get(msg.id)
-                  if (payload.new.body === optimisticBody && payload.new.sender === me?.id) {
-                    optimisticMessagesRef.current.delete(msg.id)
-                    return false // Remove optimistic message
-                  }
-                }
-                return true
-              })
-              
-              // Update last message time
-              if (payload.new.created_at > lastMessageTimeRef.current) {
-                lastMessageTimeRef.current = payload.new.created_at
-              }
-              
-              return [...updated, payload.new]
-            })
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status:', status)
-        })
-
-      channelRef.current = channel
-    }
-
-    setupSubscription()
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
       }
     }
   }, [id, me?.id])
@@ -206,7 +145,7 @@ export default function ChatClient({ id }: { id: string }) {
 
       // Add optimistic message immediately
       setMsgs(prev => [...prev, optimisticMessage])
-      optimisticMessagesRef.current.set(optimisticId, messageText)
+      pendingMessagesRef.current.add(optimisticId)
 
       // Send to database
       const { error } = await supabase.from('messages').insert({
@@ -218,7 +157,7 @@ export default function ChatClient({ id }: { id: string }) {
       if (error) {
         // Remove optimistic message if failed
         setMsgs(prev => prev.filter(msg => msg.id !== optimisticId))
-        optimisticMessagesRef.current.delete(optimisticId)
+        pendingMessagesRef.current.delete(optimisticId)
         alert('Feil ved sending av melding: ' + error.message)
       }
     } catch (error) {
