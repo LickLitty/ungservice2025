@@ -32,11 +32,12 @@ export default function Home() {
   useEffect(() => {
     const loadJobs = async () => {
       setLoading(true)
-      let query = supabase
-        .from('jobs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        
+      try {
+        let query = supabase
+          .from('jobs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          
         if (category) query = query.eq('category', category)
         if (priceType) query = query.eq('price_type', priceType as any)
         if (location) query = query.ilike('location', `%${location}%`)
