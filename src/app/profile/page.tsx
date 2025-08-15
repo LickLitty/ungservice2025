@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSearchParams, useRouter } from 'next/navigation'
 
@@ -14,7 +14,7 @@ type Profile = {
   pin_sha256?: string | null
 }
 
-export default function ProfilePage() {
+function ProfileContent() {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [fullName, setFullName] = useState('')
@@ -98,6 +98,14 @@ export default function ProfilePage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div>Laster profil...</div>}>
+      <ProfileContent />
+    </Suspense>
   )
 }
 
