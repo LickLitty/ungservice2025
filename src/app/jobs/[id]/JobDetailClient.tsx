@@ -4,9 +4,7 @@ import { supabase } from '@/lib/supabase'
 
 export default function JobDetailClient({ id }: { id: string }) {
   const [job, setJob] = useState<any>(null)
-  const [interested, setInterested] = useState(false)
   const [ownerName, setOwnerName] = useState<string>('')
-  const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
     const loadJob = async () => {
@@ -20,59 +18,26 @@ export default function JobDetailClient({ id }: { id: string }) {
     loadJob()
   }, [id])
 
-  // Fjernet send søknad-funksjon
-
-  const markInterested = async () => {
+  const addContact = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return alert('Logg inn for å vise interesse.')
-
-    if (!interested) {
-      const { error } = await supabase.from('applications').upsert({
-        job_id: id,
-        applicant: user.id,
-        message: 'Viser interesse',
-        price_cents: null,
-        status: 'pending'
-      }, { onConflict: 'job_id,applicant' })
-      if (error) return alert(error.message)
-
-      const prof = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
-      const displayName = prof.data?.full_name || 'En bruker'
-      await supabase.from('messages').insert({ job_id: id, sender: user.id, body: `${displayName} viste interesse for oppdraget.` })
-      const job = await supabase.from('jobs').select('owner').eq('id', id).single()
-      if (job.data?.owner) {
-        await supabase.from('notifications').insert({ user_id: job.data.owner, job_id: id, from_user: user.id, type: 'interest', message: `${displayName} viste interesse for oppdraget.` })
-      }
-      setInterested(true)
-    } else {
-      // Remove interest
-      const { error } = await supabase
-        .from('applications')
-        .delete()
-        .eq('job_id', id)
-        .eq('applicant', user.id)
-      if (error) return alert(error.message)
-      setInterested(false)
+    if (!user) return alert('Logg inn for å legge til kontakt.')
+    if (!job?.owner || job.owner === user.id) {
+      // Hoppe direkte til meldinger (eier eller egen jobb)
+      window.location.href = `/messages${job?.owner ? `?to=${job.owner}` : ''}`
+      return
     }
+    // Sørg for at det finnes en DM-tråd mellom brukeren og eier
+    const existing = await supabase
+      .from('direct_messages')
+      .select('id')
+      .or(`and(sender.eq.${user.id},recipient.eq.${job.owner}),and(sender.eq.${job.owner},recipient.eq.${user.id})`)
+      .limit(1)
+    if (!existing.error && existing.data && existing.data.length === 0) {
+      // legg inn en tom oppstarts-melding
+      await supabase.from('direct_messages').insert({ sender: user.id, recipient: job.owner, body: '(startet samtale)' })
+    }
+    window.location.href = `/messages?to=${job.owner}`
   }
-
-  // Sett isOwner og initial interested-status
-  useEffect(() => {
-    const init = async () => {
-      if (!job) return
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      setIsOwner(user.id === job.owner)
-      const existing = await supabase
-        .from('applications')
-        .select('id')
-        .eq('job_id', id)
-        .eq('applicant', user.id)
-        .maybeSingle()
-      setInterested(!!existing.data)
-    }
-    init()
-  }, [job, id])
 
   if (!job) return <div>Laster…</div>
   return (
@@ -83,23 +48,9 @@ export default function JobDetailClient({ id }: { id: string }) {
         {!!job.description && <p className="mt-3 whitespace-pre-wrap text-base leading-7">{job.description}</p>}
         <div className="text-base text-gray-700 mt-3">{job.address ?? 'Uten adresse'}</div>
         <div className="text-base mt-1">{job.price_cents ? (job.price_cents/100).toFixed(0)+' kr' : '–'}</div>
-        <a className="text-blue-600 underline inline-block mt-2" href={`/jobs/${job.id}/chat?to=${job.owner}`}>Åpne chat</a>
       </div>
       <div className="border rounded p-4 bg-white space-y-3">
-        <h2 className="text-lg font-semibold">Søk / vis interesse</h2>
-        <div className="flex gap-2">
-          {!isOwner && (
-            <button
-              onClick={markInterested}
-              disabled={interested}
-              className={`${interested ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded px-4 py-2 text-base disabled:opacity-80`}
-            >
-              {interested ? 'Interessert' : 'Vis interesse'}
-            </button>
-          )}
-          <a className="border rounded px-4 py-2 text-base" href={`/messages?to=${job.owner}`}>Melding</a>
-          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
-        </div>
+        <button onClick={addContact} className="bg-blue-600 text-white rounded px-4 py-2 text-base hover:bg-blue-700">Legg til kontakt</button>
       </div>
     </div>
   )
