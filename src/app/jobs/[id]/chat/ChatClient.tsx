@@ -133,30 +133,28 @@ export default function ChatClient({ id }: { id: string }) {
 
   const send = async () => {
     if (!text.trim() || loading) return
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      alert('Logg inn.')
-      return
-    }
-
     setLoading(true)
-    
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Logg inn.')
+        return
+      }
+
       const messageText = text.trim()
       setText('')
 
-      // Send to database first
-      const { data, error } = await supabase.from('messages').insert({
-        job_id: id,
-        sender: user.id,
-        body: messageText
-      }).select().single()
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({ job_id: id, sender: user.id, body: messageText })
+        .select()
+        .single()
 
       if (error) {
         alert('Feil ved sending av melding: ' + error.message)
-      } else if (data) {
-        // Add the real message immediately
+        return
+      }
+      if (data) {
         setMsgs(prev => [...prev, data as Message])
         lastMessageTimeRef.current = (data as Message).created_at
       }
