@@ -41,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link href="/jobs/new" className="text-gray-700 hover:text-blue-600 font-medium">Legg ut oppdrag</Link>
                     <Link href="/mine" className="text-gray-700 hover:text-blue-600 font-medium">Mine oppdrag</Link>
                     <Link href="/notifications" className="text-gray-700 hover:text-blue-600 font-medium">Varsler</Link>
+                    <Link href="/messages" className="text-gray-700 hover:text-blue-600 font-medium">Meldinger</Link>
                   </nav>
                 </div>
                 
