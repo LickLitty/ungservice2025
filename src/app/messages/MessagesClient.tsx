@@ -22,7 +22,7 @@ export default function MessagesClient() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Hent alle deltagere fra direct_messages der bruker er sender/mottaker
+      // 1) Hent alle deltagere fra direct_messages der bruker er sender/mottaker
       const dm = await supabase
         .from('direct_messages')
         .select('sender, recipient, body, created_at')
@@ -35,7 +35,26 @@ export default function MessagesClient() {
         otherIds.add(other)
       })
 
-      const profiles = await supabase.from('profiles').select('id, full_name').in('id', Array.from(otherIds))
+      // 2) Hent relasjoner fra applications (vis interesse)
+      const ownedJobs = await supabase.from('jobs').select('id').eq('owner', user.id)
+      const ownedIds = (ownedJobs.data || []).map((j: any) => j.id)
+      const interestToMe = ownedIds.length
+        ? await supabase.from('applications').select('applicant, created_at').in('job_id', ownedIds)
+        : { data: [] as any[] }
+
+      ;(interestToMe.data || []).forEach((a: any) => otherIds.add(a.applicant))
+
+      const myInterests = await supabase.from('applications').select('job_id, created_at').eq('applicant', user.id)
+      const theirOwnersIds = (myInterests.data || []).map((a: any) => a.job_id)
+      const owners = theirOwnersIds.length
+        ? await supabase.from('jobs').select('owner').in('id', theirOwnersIds)
+        : { data: [] as any[] }
+      ;(owners.data || []).forEach((o: any) => otherIds.add(o.owner))
+
+      // 3) Slå opp navn
+      const profiles = otherIds.size
+        ? await supabase.from('profiles').select('id, full_name').in('id', Array.from(otherIds))
+        : { data: [] as any[] }
       const idToName = new Map<string, string | null>((profiles.data || []).map((p: any) => [p.id, p.full_name]))
 
       const threadsMap = new Map<string, Thread>()
@@ -51,10 +70,30 @@ export default function MessagesClient() {
         }
       })
 
+      // 4) Sørg for at interesser også dukker som tomme tråder
+      Array.from(otherIds).forEach((other) => {
+        if (!threadsMap.has(other)) {
+          threadsMap.set(other, {
+            other_id: other,
+            other_name: idToName.get(other) || 'Ukjent',
+            last_message: null,
+            last_time: null,
+          })
+        }
+      })
+
       const threadsData = Array.from(threadsMap.values())
       setThreads(threadsData)
       const toParam = search.get('to')
-      const initial = toParam ? threadsData.find(t => t.other_id === toParam) : threadsData[0]
+      let initial = toParam ? threadsData.find(t => t.other_id === toParam) : threadsData[0]
+      if (!initial && toParam) {
+        // Create a placeholder thread so user can start a new DM even if no messages yet
+        const prof = await supabase.from('profiles').select('id, full_name').eq('id', toParam).maybeSingle()
+        if (!prof.error && prof.data) {
+          initial = { other_id: prof.data.id, other_name: prof.data.full_name, last_message: null, last_time: null }
+          setThreads(prev => [initial as Thread, ...prev])
+        }
+      }
       if (initial) selectThread(initial)
     }
     load()
