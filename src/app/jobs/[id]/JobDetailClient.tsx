@@ -22,19 +22,7 @@ export default function JobDetailClient({ id }: { id: string }) {
     loadJob()
   }, [id])
 
-  const apply = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return alert('Logg inn.')
-    if (!price || !message) return alert('Fyll ut alle feltene.')
-    const { error } = await supabase.from('applications').insert({
-      job_id: id, applicant: user.id, price_cents: price * 100, message
-    })
-    if (!error) {
-      setPrice('')
-      setMessage('')
-      alert('Søknad sendt!')
-    }
-  }
+  // Fjernet send søknad-funksjon
 
   const markInterested = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -111,14 +99,13 @@ export default function JobDetailClient({ id }: { id: string }) {
               {interested ? 'Interessert' : 'Vis interesse'}
             </button>
           )}
-          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Direktemelding</a>
+          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Melding</a>
           {isOwner && (
             <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
           )}
         </div>
         <input className="w-full border rounded p-2" placeholder="Foreslått pris (kr, valgfritt)" type="number" value={price} onChange={e=>setPrice(e.target.value ? Number(e.target.value) : '')} />
-        <textarea className="w-full border rounded p-2" placeholder="Melding til oppdragsgiver" value={message} onChange={e=>setMessage(e.target.value)} />
-        <button onClick={apply} className="bg-black text-white rounded px-4 py-2 text-base">Send søknad</button>
+        <textarea className="w-full border rounded p-2" placeholder="Melding til oppdragsgiver (valgfritt)" value={message} onChange={e=>setMessage(e.target.value)} />
       </div>
     </div>
   )
