@@ -8,6 +8,7 @@ export default function JobDetailClient({ id }: { id: string }) {
   const [price, setPrice] = useState<number | ''>('')
   const [interested, setInterested] = useState(false)
   const [ownerName, setOwnerName] = useState<string>('')
+  const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
     const loadJob = async () => {
@@ -36,6 +37,7 @@ export default function JobDetailClient({ id }: { id: string }) {
   }
 
   const markInterested = async () => {
+    if (interested) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return alert('Logg inn for å vise interesse.')
     const { error } = await supabase.from('applications').upsert({
@@ -71,6 +73,24 @@ export default function JobDetailClient({ id }: { id: string }) {
     }
   }
 
+  // Sett isOwner og initial interested-status
+  useEffect(() => {
+    const init = async () => {
+      if (!job) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setIsOwner(user.id === job.owner)
+      const existing = await supabase
+        .from('applications')
+        .select('id')
+        .eq('job_id', id)
+        .eq('applicant', user.id)
+        .maybeSingle()
+      setInterested(!!existing.data)
+    }
+    init()
+  }, [job, id])
+
   if (!job) return <div>Laster…</div>
   return (
     <div className="space-y-4">
@@ -85,9 +105,19 @@ export default function JobDetailClient({ id }: { id: string }) {
       <div className="border rounded p-4 bg-white space-y-3">
         <h2 className="text-lg font-semibold">Søk / vis interesse</h2>
         <div className="flex gap-2">
-          <button onClick={markInterested} className="bg-blue-600 text-white rounded px-4 py-2 text-base">Vis interesse</button>
+          {!isOwner && (
+            <button
+              onClick={markInterested}
+              disabled={interested}
+              className={`${interested ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded px-4 py-2 text-base disabled:opacity-80`}
+            >
+              {interested ? 'Interessert' : 'Vis interesse'}
+            </button>
+          )}
           <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Direktemelding</a>
-          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
+          {isOwner && (
+            <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
+          )}
         </div>
         <input className="w-full border rounded p-2" placeholder="Foreslått pris (kr, valgfritt)" type="number" value={price} onChange={e=>setPrice(e.target.value ? Number(e.target.value) : '')} />
         <textarea className="w-full border rounded p-2" placeholder="Melding til oppdragsgiver" value={message} onChange={e=>setMessage(e.target.value)} />
