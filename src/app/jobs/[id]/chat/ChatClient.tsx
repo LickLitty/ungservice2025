@@ -19,6 +19,15 @@ export default function ChatClient({ id }: { id: string }) {
 
   type Message = { id: string; created_at: string; job_id: string; sender: string; body: string }
 
+  const formatTime = (value?: string) => {
+    try {
+      const d = value ? new Date(value) : new Date()
+      return isNaN(d.getTime()) ? new Date().toLocaleString('no-NO') : d.toLocaleString('no-NO')
+    } catch {
+      return new Date().toLocaleString('no-NO')
+    }
+  }
+
   // Load messages
   useEffect(() => {
     const loadMessages = async () => {
@@ -189,9 +198,7 @@ export default function ChatClient({ id }: { id: string }) {
         )}
         {msgs.map((m: Message) => (
           <div key={m.id} className="border rounded p-3">
-            <div className="text-sm text-gray-500">
-              {new Date(m.created_at).toLocaleString('no-NO')}
-            </div>
+            <div className="text-sm text-gray-500">{formatTime(m.created_at)}</div>
             <div className="text-base leading-7">
               <span className="font-semibold">
                 {m.sender === me?.id ? (me?.full_name || 'Deg') : (other?.full_name || ownerName || 'Ukjent')}:

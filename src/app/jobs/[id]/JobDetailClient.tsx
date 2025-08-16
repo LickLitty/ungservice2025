@@ -37,39 +37,36 @@ export default function JobDetailClient({ id }: { id: string }) {
   }
 
   const markInterested = async () => {
-    if (interested) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return alert('Logg inn for å vise interesse.')
-    const { error } = await supabase.from('applications').upsert({
-      job_id: id,
-      applicant: user.id,
-      message: message || 'Viser interesse',
-      price_cents: price ? Number(price) * 100 : null,
-      status: 'pending'
-    }, { onConflict: 'job_id,applicant' })
-    if (error) alert(error.message)
-    else {
-      // Send automatisk systemmelding som varsling i chatten
+
+    if (!interested) {
+      const { error } = await supabase.from('applications').upsert({
+        job_id: id,
+        applicant: user.id,
+        message: message || 'Viser interesse',
+        price_cents: price ? Number(price) * 100 : null,
+        status: 'pending'
+      }, { onConflict: 'job_id,applicant' })
+      if (error) return alert(error.message)
+
       const prof = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
       const displayName = prof.data?.full_name || 'En bruker'
-      await supabase.from('messages').insert({
-        job_id: id,
-        sender: user.id,
-        body: `${displayName} viste interesse for oppdraget.`
-      })
-      // Notification til eier
+      await supabase.from('messages').insert({ job_id: id, sender: user.id, body: `${displayName} viste interesse for oppdraget.` })
       const job = await supabase.from('jobs').select('owner').eq('id', id).single()
       if (job.data?.owner) {
-        await supabase.from('notifications').insert({
-          user_id: job.data.owner,
-          job_id: id,
-          from_user: user.id,
-          type: 'interest',
-          message: `${displayName} viste interesse for oppdraget.`
-        })
+        await supabase.from('notifications').insert({ user_id: job.data.owner, job_id: id, from_user: user.id, type: 'interest', message: `${displayName} viste interesse for oppdraget.` })
       }
       setInterested(true)
-      alert('Interesse registrert! Du kan sende melding i chatten.')
+    } else {
+      // Remove interest
+      const { error } = await supabase
+        .from('applications')
+        .delete()
+        .eq('job_id', id)
+        .eq('applicant', user.id)
+      if (error) return alert(error.message)
+      setInterested(false)
     }
   }
 
