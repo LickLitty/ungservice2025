@@ -97,7 +97,7 @@ export default function JobDetailClient({ id }: { id: string }) {
               {interested ? 'Interessert' : 'Vis interesse'}
             </button>
           )}
-          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Melding</a>
+          <a className="border rounded px-4 py-2 text-base" href={`/messages?to=${isOwner ? '' : job.owner}`}>Melding</a>
           <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
         </div>
       </div>

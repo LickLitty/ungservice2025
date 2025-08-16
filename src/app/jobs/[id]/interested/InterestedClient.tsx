@@ -55,7 +55,7 @@ export default function InterestedClient({ id }: { id: string }) {
               <div className="text-xs text-gray-500 mt-1">{new Date(a.created_at).toLocaleString('no-NO')}</div>
             </div>
             <div className="flex gap-2">
-              <Link href={`/jobs/${id}/chat?to=${a.applicant}`} className="bg-blue-600 text-white rounded px-3 py-1">Send melding</Link>
+              <Link href={`/messages?to=${a.applicant}`} className="bg-blue-600 text-white rounded px-3 py-1">Send melding</Link>
             </div>
           </div>
         </div>

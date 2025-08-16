@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 type Thread = {
@@ -14,6 +15,7 @@ export default function MessagesClient() {
   const [selected, setSelected] = useState<Thread | null>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [text, setText] = useState('')
+  const search = useSearchParams()
 
   useEffect(() => {
     const load = async () => {
@@ -51,10 +53,12 @@ export default function MessagesClient() {
 
       const threadsData = Array.from(threadsMap.values())
       setThreads(threadsData)
-      if (threadsData[0]) selectThread(threadsData[0])
+      const toParam = search.get('to')
+      const initial = toParam ? threadsData.find(t => t.other_id === toParam) : threadsData[0]
+      if (initial) selectThread(initial)
     }
     load()
-  }, [])
+  }, [search])
 
   const selectThread = async (t: Thread) => {
     setSelected(t)
