@@ -55,6 +55,15 @@ create table if not exists messages (
   created_at timestamptz default now()
 );
 
+-- Direkte meldinger mellom brukere (uavhengig av jobb)
+create table if not exists direct_messages (
+  id uuid primary key default gen_random_uuid(),
+  sender uuid references profiles(id) on delete cascade,
+  recipient uuid references profiles(id) on delete cascade,
+  body text not null,
+  created_at timestamptz default now()
+);
+
 -- Varsler
 create table if not exists notifications (
   id uuid primary key default gen_random_uuid(),
@@ -73,6 +82,7 @@ alter table jobs enable row level security;
 alter table applications enable row level security;
 alter table messages enable row level security;
 alter table notifications enable row level security;
+alter table direct_messages enable row level security;
 
 -- Policies
 create policy "read own profile" on profiles
@@ -139,6 +149,16 @@ for select using (
            or exists(select 1 from applications a where a.job_id=j.id and a.applicant=auth.uid()))
   )
 );
+
+-- Policies for direct messages
+create policy if not exists "dm insert by sender" on direct_messages
+for insert with check (sender = auth.uid());
+
+create policy if not exists "dm read own" on direct_messages
+for select using (sender = auth.uid() or recipient = auth.uid());
+
+create policy if not exists "dm update own" on direct_messages
+for update using (sender = auth.uid());
 
 -- Policies for notifications
 create policy "read own notifications" on notifications

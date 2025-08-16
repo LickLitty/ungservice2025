@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Thread = {
-  job_id: string
   other_id: string
   other_name: string | null
   last_message: string | null
@@ -21,37 +20,36 @@ export default function MessagesClient() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Find all jobs the user is related to
-      const jobsRes = await supabase
-        .from('jobs')
-        .select('id, owner')
-        .or(`owner.eq.${user.id}`)
-      const jobIds = (jobsRes.data || []).map((j: any) => j.id)
-
-      // Collect participants from applications
-      const apps = await supabase
-        .from('applications')
-        .select('job_id, applicant, created_at')
-        .in('job_id', jobIds)
+      // Hent alle deltagere fra direct_messages der bruker er sender/mottaker
+      const dm = await supabase
+        .from('direct_messages')
+        .select('sender, recipient, body, created_at')
+        .or(`sender.eq.${user.id},recipient.eq.${user.id}`)
+        .order('created_at', { ascending: false })
 
       const otherIds = new Set<string>()
-      ;(apps.data || []).forEach((a: any) => otherIds.add(a.applicant))
+      ;(dm.data || []).forEach((m: any) => {
+        const other = m.sender === user.id ? m.recipient : m.sender
+        otherIds.add(other)
+      })
 
-      const profiles = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', Array.from(otherIds))
+      const profiles = await supabase.from('profiles').select('id, full_name').in('id', Array.from(otherIds))
+      const idToName = new Map<string, string | null>((profiles.data || []).map((p: any) => [p.id, p.full_name]))
 
-      const idToName = new Map((profiles.data || []).map((p: any) => [p.id, p.full_name]))
+      const threadsMap = new Map<string, Thread>()
+      ;(dm.data || []).forEach((m: any) => {
+        const other = m.sender === user.id ? m.recipient : m.sender
+        if (!threadsMap.has(other)) {
+          threadsMap.set(other, {
+            other_id: other,
+            other_name: idToName.get(other) || 'Ukjent',
+            last_message: m.body,
+            last_time: m.created_at,
+          })
+        }
+      })
 
-      const threadsData: Thread[] = (apps.data || []).map((a: any) => ({
-        job_id: a.job_id,
-        other_id: a.applicant,
-        other_name: idToName.get(a.applicant) || 'Ukjent',
-        last_message: null,
-        last_time: a.created_at,
-      }))
-
+      const threadsData = Array.from(threadsMap.values())
       setThreads(threadsData)
       if (threadsData[0]) selectThread(threadsData[0])
     }
@@ -61,9 +59,9 @@ export default function MessagesClient() {
   const selectThread = async (t: Thread) => {
     setSelected(t)
     const { data } = await supabase
-      .from('messages')
+      .from('direct_messages')
       .select('*')
-      .eq('job_id', t.job_id)
+      .or(`and(sender.eq.${t.other_id},recipient.eq.(select auth.uid())),and(sender.eq.(select auth.uid()),recipient.eq.${t.other_id})`)
       .order('created_at', { ascending: true })
     setMessages(data || [])
   }
@@ -74,7 +72,7 @@ export default function MessagesClient() {
     if (!user) return
     const body = text.trim()
     setText('')
-    const { error } = await supabase.from('messages').insert({ job_id: selected.job_id, sender: user.id, body })
+    const { error } = await supabase.from('direct_messages').insert({ sender: user.id, recipient: selected.other_id, body })
     if (!error) selectThread(selected)
   }
 
@@ -85,7 +83,7 @@ export default function MessagesClient() {
         <div className="max-h-[70vh] overflow-y-auto">
           {(threads.length === 0) && <div className="p-3 text-sm text-gray-600">Ingen samtaler ennå.</div>}
           {threads.map(t => (
-            <button key={`${t.job_id}-${t.other_id}`} onClick={() => selectThread(t)} className={`w-full text-left p-3 border-b hover:bg-gray-50 ${selected && selected.job_id===t.job_id && selected.other_id===t.other_id ? 'bg-gray-50' : ''}`}>
+            <button key={t.other_id} onClick={() => selectThread(t)} className={`w-full text-left p-3 border-b hover:bg-gray-50 ${selected && selected.other_id===t.other_id ? 'bg-gray-50' : ''}`}>
               <div className="font-medium">{t.other_name || 'Ukjent'}</div>
               <div className="text-xs text-gray-600">{t.last_message || '...'}</div>
             </button>
