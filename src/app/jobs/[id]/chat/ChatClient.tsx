@@ -13,6 +13,9 @@ export default function ChatClient({ id }: { id: string }) {
   const [ownerName, setOwnerName] = useState<string>('')
   const lastMessageTimeRef = useRef<string>('')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
+  const channelRef = useRef<any>(null)
+
+  type Message = { id: string; created_at: string; job_id: string; sender: string; body: string }
 
   // Load messages
   useEffect(() => {
@@ -24,9 +27,9 @@ export default function ChatClient({ id }: { id: string }) {
         .order('created_at', { ascending: true })
       
       if (!error && data) {
-        setMsgs(data)
+        setMsgs(data as Message[])
         if (data.length > 0) {
-          lastMessageTimeRef.current = data[data.length - 1].created_at
+          lastMessageTimeRef.current = (data[data.length - 1] as Message).created_at
         }
       }
     }
@@ -34,7 +37,38 @@ export default function ChatClient({ id }: { id: string }) {
     loadMessages()
   }, [id])
 
-  // Poll for new messages every 2s
+  // Realtime subscription for instant updates (with dedupe)
+  useEffect(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+
+    const channel = supabase
+      .channel(`messages-${id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `job_id=eq.${id}`
+      }, (payload: { new: Message }) => {
+        setMsgs(prev => {
+          if (prev.some((m: Message) => m.id === payload.new.id)) return prev
+          const next = [...prev, payload.new]
+          if (payload.new.created_at > (lastMessageTimeRef.current || '')) {
+            lastMessageTimeRef.current = payload.new.created_at
+          }
+          return next
+        })
+      })
+      .subscribe()
+
+    channelRef.current = channel
+
+    return () => { if (channelRef.current) supabase.removeChannel(channelRef.current) }
+  }, [id])
+
+  // Poll for new messages every 2s (fallback)
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(async () => {
@@ -46,8 +80,14 @@ export default function ChatClient({ id }: { id: string }) {
         .gt('created_at', since || '1970-01-01')
         .order('created_at', { ascending: true })
       if (!error && data && data.length > 0) {
-        setMsgs(prev => [...prev, ...data])
-        lastMessageTimeRef.current = data[data.length - 1].created_at
+        setMsgs(prev => {
+          const incoming = (data as Message[]).filter((m: Message) => !prev.some((p: Message) => p.id === m.id))
+          if (incoming.length > 0) {
+            lastMessageTimeRef.current = incoming[incoming.length - 1].created_at
+            return [...prev, ...incoming]
+          }
+          return prev
+        })
       }
     }, 2000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -112,8 +152,8 @@ export default function ChatClient({ id }: { id: string }) {
         alert('Feil ved sending av melding: ' + error.message)
       } else if (data) {
         // Add the real message immediately
-        setMsgs(prev => [...prev, data])
-        lastMessageTimeRef.current = data.created_at
+        setMsgs(prev => [...prev, data as Message])
+        lastMessageTimeRef.current = (data as Message).created_at
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -144,7 +184,7 @@ export default function ChatClient({ id }: { id: string }) {
             )}
           </div>
         )}
-        {msgs.map(m => (
+        {msgs.map((m: Message) => (
           <div key={m.id} className="border rounded p-3">
             <div className="text-sm text-gray-500">
               {new Date(m.created_at).toLocaleString('no-NO')}
