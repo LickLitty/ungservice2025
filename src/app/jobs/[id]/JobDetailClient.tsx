@@ -85,7 +85,7 @@ export default function JobDetailClient({ id }: { id: string }) {
         {!!job.description && <p className="mt-3 whitespace-pre-wrap text-base leading-7">{job.description}</p>}
         <div className="text-base text-gray-700 mt-3">{job.address ?? 'Uten adresse'}</div>
         <div className="text-base mt-1">{job.price_cents ? (job.price_cents/100).toFixed(0)+' kr' : '–'}</div>
-        <a className="text-blue-600 underline inline-block mt-2" href={`/jobs/${job.id}/chat`}>Åpne chat</a>
+        <a className="text-blue-600 underline inline-block mt-2" href={`/jobs/${job.id}/chat?to=${job.owner}`}>Åpne chat</a>
       </div>
       <div className="border rounded p-4 bg-white space-y-3">
         <h2 className="text-lg font-semibold">Søk / vis interesse</h2>
@@ -100,9 +100,7 @@ export default function JobDetailClient({ id }: { id: string }) {
             </button>
           )}
           <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Melding</a>
-          {isOwner && (
-            <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
-          )}
+          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
         </div>
         <input className="w-full border rounded p-2" placeholder="Foreslått pris (kr, valgfritt)" type="number" value={price} onChange={e=>setPrice(e.target.value ? Number(e.target.value) : '')} />
         <textarea className="w-full border rounded p-2" placeholder="Melding til oppdragsgiver (valgfritt)" value={message} onChange={e=>setMessage(e.target.value)} />

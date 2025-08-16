@@ -56,6 +56,7 @@ export default function InterestedClient({ id }: { id: string }) {
             </div>
             <div className="flex gap-2">
               <Link href={`/jobs/${id}/chat?to=${a.applicant}`} className="bg-blue-600 text-white rounded px-3 py-1">Send melding</Link>
+              <Link href={`/jobs/${id}/chat?to=${a.profile?.id ?? a.applicant}`} className="border rounded px-3 py-1">Meld eier</Link>
             </div>
           </div>
         </div>
