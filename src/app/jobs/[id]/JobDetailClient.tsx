@@ -4,8 +4,6 @@ import { supabase } from '@/lib/supabase'
 
 export default function JobDetailClient({ id }: { id: string }) {
   const [job, setJob] = useState<any>(null)
-  const [message, setMessage] = useState('')
-  const [price, setPrice] = useState<number | ''>('')
   const [interested, setInterested] = useState(false)
   const [ownerName, setOwnerName] = useState<string>('')
   const [isOwner, setIsOwner] = useState(false)
@@ -32,8 +30,8 @@ export default function JobDetailClient({ id }: { id: string }) {
       const { error } = await supabase.from('applications').upsert({
         job_id: id,
         applicant: user.id,
-        message: message || 'Viser interesse',
-        price_cents: price ? Number(price) * 100 : null,
+        message: 'Viser interesse',
+        price_cents: null,
         status: 'pending'
       }, { onConflict: 'job_id,applicant' })
       if (error) return alert(error.message)
@@ -102,8 +100,6 @@ export default function JobDetailClient({ id }: { id: string }) {
           <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Melding</a>
           <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
         </div>
-        <input className="w-full border rounded p-2" placeholder="Foreslått pris (kr, valgfritt)" type="number" value={price} onChange={e=>setPrice(e.target.value ? Number(e.target.value) : '')} />
-        <textarea className="w-full border rounded p-2" placeholder="Melding til oppdragsgiver (valgfritt)" value={message} onChange={e=>setMessage(e.target.value)} />
       </div>
     </div>
   )
