@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useSearchParams } from 'next/navigation'
 
 // Chat component - updated to fix sender issue
 export default function ChatClient({ id }: { id: string }) {
@@ -14,6 +15,7 @@ export default function ChatClient({ id }: { id: string }) {
   const lastMessageTimeRef = useRef<string>('')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const channelRef = useRef<any>(null)
+  const searchParams = useSearchParams()
 
   type Message = { id: string; created_at: string; job_id: string; sender: string; body: string }
 
@@ -93,7 +95,7 @@ export default function ChatClient({ id }: { id: string }) {
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [id])
 
-  // Load user data
+  // Load user data (respect ?to=USER_ID)
   useEffect(() => {
     const loadUsers = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -108,10 +110,13 @@ export default function ChatClient({ id }: { id: string }) {
 
       const meRes = await supabase.from('profiles').select('id,full_name,phone,about').eq('id', user.id).single()
       setMe(meRes.data)
-      
-      const otherId = user.id === ownerId
-        ? (await supabase.from('applications').select('applicant').eq('job_id', id).limit(1).maybeSingle()).data?.applicant
-        : ownerId
+
+      const toParam = searchParams.get('to')
+      const otherId = toParam
+        ? toParam
+        : user.id === ownerId
+          ? (await supabase.from('applications').select('applicant').eq('job_id', id).limit(1).maybeSingle()).data?.applicant
+          : ownerId
       
       if (otherId) {
         const otherRes = await supabase.from('profiles').select('id,full_name,phone,about').eq('id', otherId).maybeSingle()
@@ -119,7 +124,7 @@ export default function ChatClient({ id }: { id: string }) {
       }
     }
     loadUsers()
-  }, [id])
+  }, [id, searchParams])
 
   // Auto-scroll to bottom when new messages
   useEffect(() => {

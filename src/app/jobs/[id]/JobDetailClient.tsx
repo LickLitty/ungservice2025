@@ -87,6 +87,7 @@ export default function JobDetailClient({ id }: { id: string }) {
         <div className="flex gap-2">
           <button onClick={markInterested} className="bg-blue-600 text-white rounded px-4 py-2 text-base">Vis interesse</button>
           <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/chat`}>Direktemelding</a>
+          <a className="border rounded px-4 py-2 text-base" href={`/jobs/${id}/interested`}>Se interesserte</a>
         </div>
         <input className="w-full border rounded p-2" placeholder="Foreslått pris (kr, valgfritt)" type="number" value={price} onChange={e=>setPrice(e.target.value ? Number(e.target.value) : '')} />
         <textarea className="w-full border rounded p-2" placeholder="Melding til oppdragsgiver" value={message} onChange={e=>setMessage(e.target.value)} />
